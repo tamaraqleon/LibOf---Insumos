@@ -1,2 +1,8 @@
-# Auto detect text files and perform LF normalization
+# Normalizar saltos de línea automáticos en todos los archivos de texto
 * text=auto
+
+# Asegurar terminaciones LF consistentes para código fuente
+*.js text eol=lf
+*.gs text eol=lf
+*.html text eol=lf
+*.md text eol=lf

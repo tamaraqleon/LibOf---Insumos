@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>LibOf</title>
+  <?!= include('Estilos'); ?>
+</head>
+<body class="bg-slate-50 text-slate-800 pb-28 font-sans">
+
+  <!-- Encabezado -->
+  <header class="bg-emerald-600 text-white p-4 shadow sticky top-0 z-20 flex justify-between items-center">
+    <div class="flex items-center gap-2">
+      <i class="fa-solid fa-boxes-stacked text-xl"></i>
+      <h1 class="text-lg font-bold">LibOf - Insumos</h1>
+    </div>
+    <span id="badge-items" class="text-xs bg-emerald-800 px-2 py-1 rounded-full font-semibold">0 seleccionados</span>
+  </header>
+
+  <!-- Banner superior de Instalación -->
+  <div id="banner-instalar" class="hidden max-w-md mx-auto mx-3 mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between shadow-sm">
+    <div class="flex items-center gap-2.5 text-xs text-emerald-950 font-medium">
+      <i class="fa-solid fa-mobile-screen-button text-emerald-600 text-base"></i>
+      <span>Agrega <strong>LibOf</strong> a tu pantalla de inicio</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="mostrarGuiaInstalacion()" class="text-xs bg-emerald-600 active:bg-emerald-700 text-white font-semibold px-2.5 py-1 rounded-lg">Cómo</button>
+      <button onclick="descartarBannerInstalar()" class="text-slate-400 hover:text-slate-600 p-1 text-sm font-bold">✕</button>
+    </div>
+  </div>
+
+  <!-- Modal Guía Instalación -->
+  <div id="modal-guia-instalar" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-xs rounded-2xl p-6 text-center shadow-xl border border-slate-100 space-y-4">
+      <div id="icono-instalar" class="w-12 h-12 mx-auto bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl">
+        <i class="fa-solid fa-mobile-screen"></i>
+      </div>
+      <div class="space-y-2">
+        <h3 class="text-base font-bold text-slate-800">Instalación en tu teléfono</h3>
+        <p id="texto-instalar" class="text-sm text-slate-600 leading-relaxed"></p>
+      </div>
+      <button onclick="cerrarGuiaInstalar()" class="w-full py-2.5 bg-emerald-600 active:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition">
+        ¡Listo, entendido!
+      </button>
+    </div>
+  </div>
+
+  <!-- VISTA 1: FORMULARIO DE SOLICITUD -->
+  <main id="vista-solicitud" class="max-w-md mx-auto p-4 space-y-4">
+    <!-- Solicitante -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+      <div class="flex justify-between items-center">
+        <h2 class="font-semibold text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2">
+          <i class="fa-regular fa-user text-emerald-600"></i> ¿Quién solicita?
+        </h2>
+        <button id="btn-cambiar-usuario" onclick="cambiarUsuarioManual()" class="hidden text-[11px] text-emerald-700 hover:underline font-semibold">
+          (Cambiar usuario)
+        </button>
+      </div>
+      <div id="contenedor-select-usuario">
+        <label class="text-xs font-medium text-slate-500">Selecciona tu nombre</label>
+        <select id="select-usuario" class="w-full mt-1 p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" onchange="actualizarDatosUsuario()">
+          <option value="">Cargando funcionarios...</option>
+        </select>
+      </div>
+      <div id="info-usuario" class="hidden text-xs bg-slate-100 p-2.5 rounded-lg flex justify-between text-slate-600">
+        <span>Entidad: <strong id="lbl-entidad" class="text-slate-800">-</strong></span>
+        <span>Depto: <strong id="lbl-depto" class="text-slate-800">-</strong></span>
+      </div>
+    </div>
+
+    <!-- Catálogo de Insumos -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+      <div class="flex justify-between items-center">
+        <h2 class="font-semibold text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-emerald-600"></i> Catálogo de Insumos
+        </h2>
+        <span class="text-xs text-slate-400" id="contador-catalogo"></span>
+      </div>
+      <input type="text" id="buscador" placeholder="Buscar lápiz, papel, cinta..." class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" oninput="filtrarInsumos()">
+      <div id="lista-insumos" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+        <p class="text-xs text-slate-400 text-center py-4">Cargando catálogo...</p>
+      </div>
+    </div>
+
+    <!-- Comentario -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-2">
+      <h2 class="font-semibold text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2">
+        <i class="fa-regular fa-comment-dots text-emerald-600"></i> Comentario
+      </h2>
+      <textarea id="comentario" rows="2" placeholder="Opcional: agrega un mensaje o nota..." class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"></textarea>
+    </div>
+  </main>
+
+  <!-- VISTA 2: PANEL DE AJUSTE (ENCARGADO) -->
+  <main id="vista-encargado" class="hidden max-w-md mx-auto p-4 space-y-4">
+    <div id="caja-pin" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+      <h2 class="font-bold text-slate-800 text-base">Ajuste de Pedido</h2>
+      <p class="text-xs text-slate-500">Ingresa tu PIN de encargado para modificar las cantidades de esta solicitud.</p>
+      <div class="flex gap-2">
+        <input type="password" id="pin-admin" maxlength="4" placeholder="PIN" class="flex-1 p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm tracking-widest text-center font-mono outline-none focus:ring-2 focus:ring-emerald-500">
+        <button onclick="verificarPin()" class="bg-slate-800 active:bg-slate-900 text-white px-5 py-2.5 rounded-lg text-sm font-semibold">Validar</button>
+      </div>
+    </div>
+
+    <div id="bloque-edicion-encargado" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-2">
+        <h3 class="font-semibold text-xs text-slate-500 uppercase tracking-wide">Datos de la Solicitud</h3>
+        <p class="text-sm font-medium text-slate-800" id="lbl-solicitante-encargado"></p>
+        <p class="text-xs text-slate-500" id="lbl-entidad-encargado"></p>
+        <div id="lbl-nota-encargado" class="hidden text-xs bg-amber-50 text-amber-800 p-2 rounded-lg"></div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+        <h3 class="font-semibold text-xs text-slate-500 uppercase tracking-wide">Ajustar Cantidades</h3>
+        <div id="lista-items-encargado" class="space-y-2"></div>
+      </div>
+
+      <div class="space-y-2 pt-2">
+        <button id="btn-guardar-ajuste" onclick="guardarAjusteEncargado()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow flex justify-center items-center gap-2 transition active:scale-95 text-sm">
+          <i class="fa-solid fa-floppy-disk"></i> Confirmar Cambios en Planilla
+        </button>
+        <button id="btn-anular-pedido" onclick="anularPedido()" class="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold rounded-xl flex justify-center items-center gap-2 transition active:scale-95 text-sm">
+          <i class="fa-solid fa-ban"></i> Anular / Cancelar Pedido
+        </button>
+        <a id="btn-wsp-ajustado" href="#" target="_blank" class="hidden w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow flex justify-center items-center gap-2 transition active:scale-95 text-sm text-center">
+          <i class="fa-brands fa-whatsapp text-lg"></i> Enviar Notificación a WhatsApp
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Barra inferior fija para enviar pedido -->
+  <div id="barra-accion-usuario" class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 z-20">
+    <div class="max-w-md mx-auto">
+      <button id="btn-enviar" onclick="enviarSolicitud()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow flex justify-center items-center gap-2 transition active:scale-95 disabled:opacity-50">
+        <i class="fa-solid fa-paper-plane"></i> Enviar Pedido
+      </button>
+    </div>
+  </div>
+
+ <!-- Modal de Notificación Obligatoria para WhatsApp -->
+  <div id="modal-exito-wsp" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl border border-slate-100 space-y-4">
+      
+      <!-- Ícono verde destacado -->
+      <div class="w-16 h-16 mx-auto bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl">
+        <i class="fa-solid fa-circle-check"></i>
+      </div>
+
+      <div class="space-y-1.5">
+        <h3 class="text-lg font-bold text-slate-800">¡Último paso!</h3>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Tu pedido está registrado. <br>
+          <strong class="text-slate-800">Para que el encargado prepare tu entrega</strong>, debes enviar la notificación por WhatsApp.
+        </p>
+      </div>
+
+      <!-- Única acción posible: Enviar WhatsApp -->
+      <div class="pt-2">
+        <button onclick="abrirWhatsappModal()" class="w-full py-4 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2 text-base transition active:scale-95 animate-pulse">
+          <i class="fa-brands fa-whatsapp text-2xl"></i> Enviar a WhatsApp
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Inyección de módulos JavaScript -->
+  <?!= include('JsUsuario'); ?>
+  <?!= include('JsEncargado'); ?>
+
+  <!-- Inicializador Global -->
+  <script>
+    window.onload = function() {
+      try {
+        var ua = window.navigator.userAgent.toLowerCase();
+        var esMovil = /iphone|ipad|ipod|android/.test(ua);
+        var descartado = leerDatoLocal('banner_libof_descartado') === 'true';
+
+        if (esMovil && !descartado) {
+          document.getElementById('banner-instalar').classList.remove('hidden');
+        }
+      } catch(e) {}
+
+      google.script.url.getLocation(function(loc) {
+        pedidoIdUrl = (loc && loc.parameter && loc.parameter.pedidoId) ? loc.parameter.pedidoId : "";
+
+        if (pedidoIdUrl && pedidoIdUrl !== "") {
+          document.getElementById('vista-solicitud').classList.add('hidden');
+          document.getElementById('barra-accion-usuario').classList.add('hidden');
+          document.getElementById('badge-items').classList.add('hidden');
+          document.getElementById('vista-encargado').classList.remove('hidden');
+        } else {
+          google.script.run
+            .withSuccessHandler(cargarDatos)
+            .withFailureHandler(function(err) {
+              alert("Error al cargar la planilla: " + (err.message || err));
+            })
+            .obtenerDatosIniciales();
+        }
+      });
+    };
+
+    function mostrarGuiaInstalacion() {
+      var ua = window.navigator.userAgent.toLowerCase();
+      var txt = document.getElementById('texto-instalar');
+      var ico = document.getElementById('icono-instalar');
+
+      if (/iphone|ipad|ipod/.test(ua)) {
+        ico.innerHTML = '<i class="fa-solid fa-arrow-up-from-bracket"></i>';
+        txt.innerHTML = 'En Safari, toca el botón <strong>Compartir</strong> (cuadrado con flecha) y selecciona <strong>"Agregar al inicio"</strong>.';
+      } else {
+        ico.innerHTML = '<i class="fa-solid fa-ellipsis-vertical"></i>';
+        txt.innerHTML = 'En Chrome, toca los <strong>3 puntos (⋮)</strong> arriba a la derecha y selecciona <strong>"Instalar aplicación"</strong> o <strong>"Agregar a pantalla principal"</strong>.';
+      }
+
+      document.getElementById('modal-guia-instalar').classList.remove('hidden');
+    }
+
+    function cerrarGuiaInstalar() {
+      document.getElementById('modal-guia-instalar').classList.add('hidden');
+      descartarBannerInstalar();
+    }
+
+    function descartarBannerInstalar() {
+      guardarDatoLocal('banner_libof_descartado', 'true');
+      var banner = document.getElementById('banner-instalar');
+      if (banner) banner.classList.add('hidden');
+    }
+  </script>
+</body>
+</html>

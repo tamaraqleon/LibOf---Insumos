@@ -1,0 +1,164 @@
+<script>
+  var pedidoAdminData = null;
+  var pedidoIdUrl = "";
+
+  function verificarPin() {
+    var pin = document.getElementById('pin-admin').value.trim();
+    if (!pin) {
+      alert("Ingresa el PIN de 4 dígitos.");
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(resp) {
+        if (resp.error) {
+          alert(resp.error);
+          return;
+        }
+        
+        pedidoAdminData = resp;
+        document.getElementById('caja-pin').classList.add('hidden');
+        document.getElementById('bloque-edicion-encargado').classList.remove('hidden');
+        
+        document.getElementById('lbl-solicitante-encargado').innerText = "Solicitante: " + resp.solicitante;
+        document.getElementById('lbl-entidad-encargado').innerText = resp.entidad + " (" + resp.departamento + ")";
+        
+        if (resp.comentario) {
+          var notaBox = document.getElementById('lbl-nota-encargado');
+          notaBox.innerText = "Nota del solicitante: " + resp.comentario;
+          notaBox.classList.remove('hidden');
+        }
+
+        renderizarItemsEdicionEncargado();
+      })
+      .withFailureHandler(function(err) {
+        alert("Error: " + (err.message || err));
+      })
+      .obtenerDetallePedido(pedidoIdUrl, pin);
+  }
+
+  function renderizarItemsEdicionEncargado() {
+    var cont = document.getElementById('lista-items-encargado');
+    if (!pedidoAdminData.items || pedidoAdminData.items.length === 0) {
+      cont.innerHTML = '<p class="text-xs text-slate-500 py-2">No hay artículos en este pedido.</p>';
+      return;
+    }
+
+    cont.innerHTML = pedidoAdminData.items.map(function(item, idx) {
+      return '' +
+        '<div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg">' +
+          '<div class="flex-1 pr-2">' +
+            '<p class="text-sm font-medium text-slate-800">' + item.nombre + '</p>' +
+          '</div>' +
+          '<div class="flex items-center gap-2">' +
+            '<button onclick="modificarCantidadItemAdmin(' + idx + ', -1)" class="w-8 h-8 bg-slate-200 active:bg-slate-300 rounded-lg text-slate-700 font-bold text-base">-</button>' +
+            '<span class="w-7 text-center text-sm font-bold text-slate-800">' + item.cantidad + '</span>' +
+            '<button onclick="modificarCantidadItemAdmin(' + idx + ', 1)" class="w-8 h-8 bg-emerald-600 active:bg-emerald-700 rounded-lg text-white font-bold text-base">+</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function modificarCantidadItemAdmin(idx, delta) {
+    var actual = pedidoAdminData.items[idx].cantidad;
+    var nuevo = Math.max(0, actual + delta);
+    pedidoAdminData.items[idx].cantidad = nuevo;
+    renderizarItemsEdicionEncargado();
+  }
+
+  function guardarAjusteEncargado() {
+    var pin = document.getElementById('pin-admin').value.trim();
+    var btn = document.getElementById('btn-guardar-ajuste');
+    var btnWsp = document.getElementById('btn-wsp-ajustado');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Actualizando planilla...';
+
+    google.script.run
+      .withSuccessHandler(function(resp) {
+        if (resp.error) {
+          alert(resp.error);
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Confirmar Cambios en Planilla';
+          return;
+        }
+
+        var textoAjustado = '*PEDIDO AJUSTADO POR ENCARGADO*\n';
+        textoAjustado += '*ID:* ' + pedidoAdminData.pedidoId + '\n';
+        textoAjustado += '*Solicitante:* ' + pedidoAdminData.solicitante + '\n\n';
+        textoAjustado += '*Cantidades autorizadas:* \n';
+
+        var aprobados = pedidoAdminData.items.filter(function(it) { return it.cantidad > 0; });
+        if (aprobados.length > 0) {
+          aprobados.forEach(function(it) {
+            textoAjustado += '- ' + it.cantidad + 'x ' + it.nombre + '\n';
+          });
+        } else {
+          textoAjustado += '- Sin insumos aprobados (0 unidades)\n';
+        }
+
+        var urlWsp = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(textoAjustado);
+        
+        btn.classList.add('hidden');
+        btnWsp.href = urlWsp;
+        btnWsp.classList.remove('hidden');
+      })
+      .withFailureHandler(function(err) {
+        alert('Error: ' + (err.message || err));
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Confirmar Cambios en Planilla';
+      })
+      .actualizarDetalleEncargado(pedidoAdminData.fila, pedidoAdminData.items, pedidoAdminData.comentario, pin);
+  }
+
+  function anularPedido() {
+    var confirmacion = confirm("¿Estás seguro de que deseas anular y cancelar este pedido?");
+    if (!confirmacion) return;
+
+    var motivo = prompt("Motivo de la anulación (opcional):", "");
+    if (motivo === null) return;
+
+    var pin = document.getElementById('pin-admin').value.trim();
+    var btnAnular = document.getElementById('btn-anular-pedido');
+    var btnGuardar = document.getElementById('btn-guardar-ajuste');
+    var btnWsp = document.getElementById('btn-wsp-ajustado');
+
+    btnAnular.disabled = true;
+    btnAnular.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Anulando pedido...';
+    btnGuardar.classList.add('hidden');
+
+    google.script.run
+      .withSuccessHandler(function(resp) {
+        if (resp.error) {
+          alert(resp.error);
+          btnAnular.disabled = false;
+          btnAnular.innerHTML = '<i class="fa-solid fa-ban"></i> Anular / Cancelar Pedido';
+          btnGuardar.classList.remove('hidden');
+          return;
+        }
+
+        alert("El pedido ha sido anulado con éxito en la planilla.");
+        btnAnular.classList.add('hidden');
+
+        var textoAnulado = '*PEDIDO CANCELADO*\n';
+        textoAnulado += '*ID:* ' + pedidoAdminData.pedidoId + '\n';
+        textoAnulado += '*Solicitante:* ' + pedidoAdminData.solicitante + '\n';
+        if (motivo && motivo.trim() !== '') {
+          textoAnulado += '*Motivo:* ' + motivo.trim() + '\n';
+        }
+        textoAnulado += '\n_Este pedido ha sido dado de baja en el sistema y no será despachado._';
+
+        var urlWsp = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(textoAnulado);
+        btnWsp.href = urlWsp;
+        btnWsp.classList.remove('hidden');
+        btnWsp.innerHTML = '<i class="fa-brands fa-whatsapp text-lg"></i> Notificar Cancelación por WhatsApp';
+      })
+      .withFailureHandler(function(err) {
+        alert('Error: ' + (err.message || err));
+        btnAnular.disabled = false;
+        btnAnular.innerHTML = '<i class="fa-solid fa-ban"></i> Anular / Cancelar Pedido';
+        btnGuardar.classList.remove('hidden');
+      })
+      .anularPedidoEncargado(pedidoAdminData.fila, pedidoAdminData.pedidoId, pedidoAdminData.solicitante, motivo, pin);
+  }
+</script>

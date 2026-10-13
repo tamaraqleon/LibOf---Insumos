@@ -1,0 +1,246 @@
+<script>
+  var personal = [];
+  var insumos = [];
+  var pedidoSeleccionado = {};
+  var mensajeWspActual = "";
+
+  function guardarDatoLocal(clave, valor) {
+    try { localStorage.setItem(clave, valor); } catch(e) {}
+    try {
+      var d = new Date();
+      d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000));
+      document.cookie = clave + "=" + encodeURIComponent(valor) + ";expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
+    } catch(e) {}
+  }
+
+  function leerDatoLocal(clave) {
+    var val = null;
+    try { val = localStorage.getItem(clave); } catch(e) {}
+    if (val) return val;
+    try {
+      var nombreEq = clave + "=";
+      var ca = document.cookie.split(';');
+      for (var i = 0; i < ca.length; i++) {
+        var c = ca[i].trim();
+        if (c.indexOf(nombreEq) === 0) return decodeURIComponent(c.substring(nombreEq.length));
+      }
+    } catch(e) {}
+    return null;
+  }
+
+  function borrarDatoLocal(clave) {
+    try { localStorage.removeItem(clave); } catch(e) {}
+    try {
+      document.cookie = clave + "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;";
+    } catch(e) {}
+  }
+
+  function cargarDatos(data) {
+    if (!data) return;
+    personal = data.personal || [];
+    insumos = data.insumos || [];
+
+    var sel = document.getElementById('select-usuario');
+    sel.innerHTML = '<option value="">-- Elige tu nombre --</option>';
+    personal.forEach(function(p, idx) {
+      sel.innerHTML += '<option value="' + idx + '">' + p.nombre + '</option>';
+    });
+
+    var usuarioGuardado = leerDatoLocal('usuario_recordado_libof');
+    if (usuarioGuardado) {
+      var indiceEncontrado = personal.findIndex(function(p) { 
+        return p.nombre.trim().toLowerCase() === usuarioGuardado.trim().toLowerCase(); 
+      });
+
+      if (indiceEncontrado !== -1) {
+        sel.value = indiceEncontrado;
+        aplicarUsuarioSeleccionado(indiceEncontrado);
+      }
+    }
+
+    renderizarInsumos(insumos);
+  }
+
+  function actualizarDatosUsuario() {
+    var idx = document.getElementById('select-usuario').value;
+    if (idx === "") {
+      document.getElementById('info-usuario').classList.add('hidden');
+      document.getElementById('btn-cambiar-usuario').classList.add('hidden');
+      borrarDatoLocal('usuario_recordado_libof');
+      return;
+    }
+    aplicarUsuarioSeleccionado(idx);
+  }
+
+  function aplicarUsuarioSeleccionado(idx) {
+    var u = personal[idx];
+    document.getElementById('lbl-entidad').innerText = u.entidad;
+    document.getElementById('lbl-depto').innerText = u.departamento;
+    document.getElementById('info-usuario').classList.remove('hidden');
+    document.getElementById('btn-cambiar-usuario').classList.remove('hidden');
+
+    guardarDatoLocal('usuario_recordado_libof', u.nombre);
+  }
+
+  function cambiarUsuarioManual() {
+    borrarDatoLocal('usuario_recordado_libof');
+    document.getElementById('select-usuario').value = "";
+    document.getElementById('info-usuario').classList.add('hidden');
+    document.getElementById('btn-cambiar-usuario').classList.add('hidden');
+  }
+
+  function renderizarInsumos(lista) {
+    var contenedor = document.getElementById('lista-insumos');
+    var badgeContador = document.getElementById('contador-catalogo');
+    if (badgeContador) badgeContador.innerText = lista.length + ' ítems';
+
+    if (lista.length === 0) {
+      contenedor.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No se encontraron artículos.</p>';
+      return;
+    }
+
+    contenedor.innerHTML = lista.map(function(item) {
+      var cant = pedidoSeleccionado[item.id] || 0;
+      return '' +
+        '<div class="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded-lg">' +
+          '<div class="flex-1 pr-2">' +
+            '<p class="text-sm font-medium text-slate-800">' + item.nombre + '</p>' +
+            '<p class="text-[11px] text-slate-400 font-mono">' + item.categoria + '</p>' +
+          '</div>' +
+          '<div class="flex items-center gap-2">' +
+            '<button onclick="cambiarCantidad(\'' + item.id + '\', -1)" class="w-7 h-7 bg-slate-200 rounded-lg text-slate-700 font-bold active:bg-slate-300">-</button>' +
+            '<span id="cant-' + item.id + '" class="w-6 text-center text-sm font-semibold">' + cant + '</span>' +
+            '<button onclick="cambiarCantidad(\'' + item.id + '\', 1)" class="w-7 h-7 bg-emerald-600 rounded-lg text-white font-bold active:bg-emerald-700">+</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function filtrarInsumos() {
+    var q = document.getElementById('buscador').value.toLowerCase();
+    var filtrados = insumos.filter(function(i) {
+      return i.nombre.toLowerCase().includes(q) || i.categoria.toLowerCase().includes(q);
+    });
+    renderizarInsumos(filtrados);
+  }
+
+  function cambiarCantidad(id, delta) {
+    var actual = pedidoSeleccionado[id] || 0;
+    var nuevo = actual + delta;
+
+    if (nuevo < 0) nuevo = 0;
+    if (nuevo === 0) {
+      delete pedidoSeleccionado[id];
+    } else {
+      pedidoSeleccionado[id] = nuevo;
+    }
+
+    var elem = document.getElementById('cant-' + id);
+    if (elem) elem.innerText = nuevo;
+
+    var totalItems = Object.keys(pedidoSeleccionado).length;
+    document.getElementById('badge-items').innerText = totalItems + ' seleccionados';
+  }
+
+  function enviarSolicitud() {
+    var idx = document.getElementById('select-usuario').value;
+    if (idx === "") {
+      alert("Por favor selecciona quién eres.");
+      return;
+    }
+
+    var itemsIds = Object.keys(pedidoSeleccionado);
+    if (itemsIds.length === 0) {
+      alert("Debes agregar al menos 1 insumo a la solicitud.");
+      return;
+    }
+
+    var u = personal[idx];
+    var itemsPayload = itemsIds.map(function(id) {
+      var insumoObj = insumos.find(function(i) { return i.id === id; });
+      return {
+        nombre: insumoObj.nombre,
+        cantidad: pedidoSeleccionado[id],
+        precioUnitario: insumoObj.precio
+      };
+    });
+
+    var comentarioTexto = document.getElementById('comentario').value.trim();
+    var btn = document.getElementById('btn-enviar');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registrando en planilla...';
+
+    var payload = {
+      nombre: u.nombre,
+      entidad: u.entidad,
+      departamento: u.departamento,
+      comentario: comentarioTexto,
+      items: itemsPayload
+    };
+
+    google.script.run
+      .withSuccessHandler(function(resp) {
+        var textoWsp = '*NUEVO PEDIDO DE INSUMOS*\n';
+        textoWsp += '*ID:* ' + resp.pedidoId + '\n';
+        textoWsp += '*Solicitante:* ' + u.nombre + '\n';
+        textoWsp += '*Entidad:* ' + u.entidad + ' (' + u.departamento + ')\n\n';
+        textoWsp += '*Detalle:* \n';
+        
+        itemsPayload.forEach(function(item) {
+          textoWsp += '- ' + item.cantidad + 'x ' + item.nombre + '\n';
+        });
+
+        if (comentarioTexto !== "") {
+          textoWsp += '\n*Comentario:* ' + comentarioTexto + '\n';
+        }
+
+        var linkAjuste = resp.appUrl + '?pedidoId=' + resp.pedidoId;
+        textoWsp += '\n*Ajustar pedido (Solo encargado):*\n' + linkAjuste;
+
+        mensajeWspActual = textoWsp;
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar Pedido';
+
+        document.getElementById('modal-exito-wsp').classList.remove('hidden');
+      })
+      .withFailureHandler(function(err) {
+        alert('Error al registrar: ' + (err.message || err));
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar Pedido';
+      })
+      .registrarPedido(payload);
+  }
+
+  function abrirWhatsappModal() {
+    if (!mensajeWspActual) return;
+    var urlWsp = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(mensajeWspActual);
+    window.open(urlWsp, '_blank');
+    cerrarModalExito();
+  }
+
+  function cerrarModalExito() {
+    document.getElementById('modal-exito-wsp').classList.add('hidden');
+    mensajeWspActual = "";
+    reiniciarFormularioSolicitud();
+  }
+
+  function reiniciarFormularioSolicitud() {
+    pedidoSeleccionado = {};
+    document.getElementById('comentario').value = "";
+    document.getElementById('buscador').value = "";
+    document.getElementById('badge-items').innerText = "0 seleccionados";
+
+    var usuarioGuardado = leerDatoLocal('usuario_recordado_libof');
+    if (!usuarioGuardado) {
+      document.getElementById('select-usuario').value = "";
+      document.getElementById('info-usuario').classList.add('hidden');
+      document.getElementById('btn-cambiar-usuario').classList.add('hidden');
+    }
+
+    google.script.run
+      .withSuccessHandler(cargarDatos)
+      .obtenerDatosIniciales();
+  }
+</script>
