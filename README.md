@@ -30,25 +30,27 @@ La plataforma resuelve el descalce entre la recepcion de insumos por empaque may
 
 El flujo transaccional separa la captura de datos, la autorizacion y el almacenamiento analitico:
 
+```text
 [ Solicitud de Insumos: Web App ]
-|
-v (Transaccion atomica)
+               |
+               v (Transaccion atomica)
 [ Base de Datos: Detalle_Pedidos / Registro_Pedidos ]
-|
-+------+------------------------------+
-v                                     v
+               |
+        +------+------------------------------+
+        v                                     v
 [ Alerta de Gestion ]                 [ Motor de Inventario ]
 [ Acceso Seguro con PIN ]             [ Calculo Matricial Kardex ]
-|                                     |
-+--------------+----------------------+
-v
-[ Script de Cierre Periodico ]
-|
-v
-[ Historico_Mensual ]
-|
-v
-[ Dashboards Analiticos ]
+        |                                     |
+        +--------------+----------------------+
+                       v
+            [ Script de Cierre Periodico ]
+                       |
+                       v
+            [ Historico_Mensual ]
+                       |
+                       v
+            [ Dashboards Analiticos ]
+```
 
 ### Modelo de Datos y Capas de Informacion:
 1. Insumos (Kardex Central): Control de catalogo, costo unitario por paquete, valor fijado de imputacion por unidad suelta, remanente fisico en bodega y gasto acumulado por articulo.
